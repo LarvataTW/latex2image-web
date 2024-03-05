@@ -51,10 +51,13 @@ app.use(conversionRouter);
 // multiple concurrent Docker containers from exhausting system resources
 conversionRouter.use(queue({ activeLimit: 1, queuedLimit: -1 }));
 
+
+
+
 // Conversion request endpoint
 conversionRouter.post('/convert', async (req, res) => {
   const id = generateID(); // Generate a unique ID for this request
-
+  // console.log(req.body.latexInput);
   try {
     if (!req.body.latexInput) {
       res.end(JSON.stringify({ error: 'No LaTeX input provided.' }));
@@ -77,10 +80,11 @@ conversionRouter.post('/convert', async (req, res) => {
       return;
     }
 
+    
     const equation = req.body.latexInput.trim();
     const fileFormat = req.body.outputFormat.toLowerCase();
     const outputScale = scaleMap[req.body.outputScale];
-
+    console.log(`equation: ${equation}`);
     // Generate and write the .tex file
     await fsPromises.mkdir(`${tempDir}/${id}`);
     await fsPromises.writeFile(`${tempDir}/${id}/equation.tex`, getLatexTemplate(equation));
@@ -110,6 +114,79 @@ conversionRouter.post('/convert', async (req, res) => {
 
     await cleanupTempFilesAsync(id);
     res.end(JSON.stringify({ imageURL: `${httpOutputDir}/img-${id}.${fileFormat}` }));
+
+  // An exception occurred somewhere, return an error
+  } catch (e) {
+    console.error(e);
+    await cleanupTempFilesAsync(id);
+    res.end(JSON.stringify({ error: 'Error converting LaTeX to image. Please ensure the input is valid.' }));
+  }
+});
+
+
+// Conversion request endpoint
+conversionRouter.get('/latex', async (req, res) => {
+  //取得網址列的參數
+  const id = generateID(); 
+  // console.log(req.query.latexInput);
+  
+  try {
+    if (!req.query.latexInput) {
+      res.end(JSON.stringify({ error: 'No LaTeX input provided.' }));
+      return;
+    }
+
+    if (!scaleMap[req.query.outputScale]) {
+      res.end(JSON.stringify({ error: 'Invalid scale.' }));
+      return;
+    }
+
+    if (!validFormats.includes(req.query.outputFormat)) {
+      res.end(JSON.stringify({ error: 'Invalid image format.' }));
+      return;
+    }
+
+    const unsupportedCommandsPresent = unsupportedCommands.filter(cmd => req.query.latexInput.includes(cmd));
+    if (unsupportedCommandsPresent.length > 0) {
+      res.end(JSON.stringify({ error: `Unsupported command(s) found: ${unsupportedCommandsPresent.join(', ')}. Please remove them and try again.` }));
+      return;
+    }
+
+    
+    const equation = '\\begin{align*}\n' +req.query.latexInput.trim()+ '\\end{align*}\n';
+    const fileFormat = req.query.outputFormat.toLowerCase();
+    const outputScale = scaleMap[req.query.outputScale];
+    console.log(`equation: ${equation}`);
+    // Generate and write the .tex file
+    await fsPromises.mkdir(`${tempDir}/${id}`);
+    await fsPromises.writeFile(`${tempDir}/${id}/equation.tex`, getLatexTemplate(equation));
+
+    // Run the LaTeX compiler and generate a .svg file
+    await execAsync(getDockerCommand(id, outputScale));
+
+    const inputSvgFileName = `${tempDir}/${id}/equation.svg`;
+    const outputFileName = `${outputDir}/img-${id}.${fileFormat}`;
+    console.log("outputFileName=",outputFileName);
+    // Return the SVG image, no further processing required
+    if (fileFormat === 'svg') {
+      await fsPromises.copyFile(inputSvgFileName, outputFileName);
+
+    // Convert to PNG
+    } else if (fileFormat === 'png') {
+      await sharp(inputSvgFileName, { density: 96 })
+        .toFile(outputFileName); // Sharp's PNG type is implicitly determined via the output file extension
+
+    // Convert to JPG
+    } else {
+      await sharp(inputSvgFileName, { density: 96 })
+        .flatten({ background: { r: 255, g: 255, b: 255 } }) // as JPG is not transparent, use a white background
+        .jpeg({ quality: 95 })
+        .toFile(outputFileName);
+    }
+
+    await cleanupTempFilesAsync(id);
+    res.sendFile(__dirname+`/${outputDir}/img-${id}.${fileFormat}`);
+    // res.end(JSON.stringify({ imageURL: `${httpOutputDir}/img-${id}.${fileFormat}` }));
 
   // An exception occurred somewhere, return an error
   } catch (e) {
