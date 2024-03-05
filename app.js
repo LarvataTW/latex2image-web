@@ -80,7 +80,7 @@ conversionRouter.post('/convert', async (req, res) => {
       return;
     }
 
-    
+
     const equation = req.body.latexInput.trim();
     const fileFormat = req.body.outputFormat.toLowerCase();
     const outputScale = scaleMap[req.body.outputScale];
@@ -99,12 +99,12 @@ conversionRouter.post('/convert', async (req, res) => {
     if (fileFormat === 'svg') {
       await fsPromises.copyFile(inputSvgFileName, outputFileName);
 
-    // Convert to PNG
+      // Convert to PNG
     } else if (fileFormat === 'png') {
       await sharp(inputSvgFileName, { density: 96 })
         .toFile(outputFileName); // Sharp's PNG type is implicitly determined via the output file extension
 
-    // Convert to JPG
+      // Convert to JPG
     } else {
       await sharp(inputSvgFileName, { density: 96 })
         .flatten({ background: { r: 255, g: 255, b: 255 } }) // as JPG is not transparent, use a white background
@@ -115,7 +115,7 @@ conversionRouter.post('/convert', async (req, res) => {
     await cleanupTempFilesAsync(id);
     res.end(JSON.stringify({ imageURL: `${httpOutputDir}/img-${id}.${fileFormat}` }));
 
-  // An exception occurred somewhere, return an error
+    // An exception occurred somewhere, return an error
   } catch (e) {
     console.error(e);
     await cleanupTempFilesAsync(id);
@@ -146,9 +146,9 @@ conversionRouter.post('/convert', async (req, res) => {
 // Conversion request endpoint
 conversionRouter.get('/latex', async (req, res) => {
   //取得網址列的參數
-  const id = generateID(); 
+  const id = generateID();
   // console.log(req.query.latexInput);
-  
+
   try {
     if (!req.query.latexInput) {
       res.end(JSON.stringify({ error: 'No LaTeX input provided.' }));
@@ -171,32 +171,32 @@ conversionRouter.get('/latex', async (req, res) => {
       return;
     }
 
-    
-    const equation = '\\begin{align*}\n' +req.query.latexInput.trim()+ '\\end{align*}\n';
+
+    const equation = '\\begin{align*}\n' + req.query.latexInput.trim() + '\\end{align*}\n';
     const fileFormat = req.query.outputFormat.toLowerCase();
     const outputScale = scaleMap[req.query.outputScale];
     const color = req.query.color;
     console.log(`equation: ${equation}`);
     // Generate and write the .tex file
     await fsPromises.mkdir(`${tempDir}/${id}`);
-    await fsPromises.writeFile(`${tempDir}/${id}/equation.tex`, getLatexTemplate(equation,color));
+    await fsPromises.writeFile(`${tempDir}/${id}/equation.tex`, getLatexTemplate(equation, color));
 
     // Run the LaTeX compiler and generate a .svg file
-    await execAsync(getDockerCommand(id, outputScale));
+    await execAsync(getCommand(id, outputScale));
 
     const inputSvgFileName = `${tempDir}/${id}/equation.svg`;
     const outputFileName = `${outputDir}/img-${id}.${fileFormat}`;
-    console.log("outputFileName=",outputFileName);
+    console.log("outputFileName=", outputFileName);
     // Return the SVG image, no further processing required
     if (fileFormat === 'svg') {
       await fsPromises.copyFile(inputSvgFileName, outputFileName);
 
-    // Convert to PNG
+      // Convert to PNG
     } else if (fileFormat === 'png') {
       await sharp(inputSvgFileName, { density: 96 })
         .toFile(outputFileName); // Sharp's PNG type is implicitly determined via the output file extension
 
-    // Convert to JPG
+      // Convert to JPG
     } else {
       await sharp(inputSvgFileName, { density: 96 })
         .flatten({ background: { r: 255, g: 255, b: 255 } }) // as JPG is not transparent, use a white background
@@ -205,10 +205,11 @@ conversionRouter.get('/latex', async (req, res) => {
     }
 
     await cleanupTempFilesAsync(id);
-    res.sendFile(__dirname+`/${outputDir}/img-${id}.${fileFormat}`);
+    res.set('Access-Control-Allow-Origin', '*');
+    res.sendFile(__dirname + `/${outputDir}/img-${id}.${fileFormat}`);
     // res.end(JSON.stringify({ imageURL: `${httpOutputDir}/img-${id}.${fileFormat}` }));
 
-  // An exception occurred somewhere, return an error
+    // An exception occurred somewhere, return an error
   } catch (e) {
     console.error(e);
     await cleanupTempFilesAsync(id);
@@ -230,7 +231,7 @@ app.listen(port, () => console.log(`Latex2Image listening at http://localhost:${
 //// Helper functions
 
 // Get the LaTeX document template for the requested equation
-function getLatexTemplate(equation,color='black') {
+function getLatexTemplate(equation, color = 'black') {
   return `
     \\documentclass[12pt]{article}
     \\usepackage{amsmath}
@@ -245,6 +246,27 @@ function getLatexTemplate(equation,color='black') {
     ${equation}
     }
     \\end{document}`;
+}
+
+// Get the command to run within the Docker container
+function getCommand(id, output_scale) {
+  // Commands to run within the container
+  const containerCmds = `
+   # Prevent LaTeX from reading/writing files in parent directories
+   echo 'openout_any = p\nopenin_any = p' > /tmp/texmf.cnf
+   export TEXMFCNF='/tmp:'
+
+   # Compile .tex file to .dvi file. Timeout kills it after 5 seconds if held up
+   timeout 5 latex -no-shell-escape -interaction=nonstopmode -halt-on-error equation.tex
+
+   # Convert .dvi to .svg file. Timeout kills it after 5 seconds if held up
+   timeout 5 dvisvgm --no-fonts --scale=${output_scale} --exact equation.dvi`;
+
+  // Start the container in the appropriate directory and run commands within it.
+  // Files in this directory will be accessible under /data within the container.
+  return `
+   cd ${tempDir}/${id}
+   /bin/bash -c "${containerCmds}"`;
 }
 
 // Get the final command responsible for launching the Docker container and generating a svg file

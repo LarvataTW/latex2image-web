@@ -98,5 +98,10 @@
                 <p>By <a href="https://joeraut.com" target="_blank">joeraut.com</a> | <a href="https://github.com/joeraut/latex2image-web" target="_blank">source code</a></p>
             </footer>
         </div>
+        <script>
+            let latex = "a_{n+1}=a_n+k";
+            let encodelatex = encodeURIComponent(latex);
+            document.write(`<img src="/latex?latexInput=${encodelatex}&outputFormat=PNG&outputScale=125%25&color=red" />`);
+        </script>
     </body>
 </html>
