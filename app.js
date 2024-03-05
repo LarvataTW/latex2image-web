@@ -123,7 +123,26 @@ conversionRouter.post('/convert', async (req, res) => {
   }
 });
 
-
+//color列表
+// black
+// blue
+// brown
+// cyan
+// darkgray
+// gray
+// green
+// lightgray
+// lime
+// magenta
+// olive
+// orange
+// pink
+// purple
+// red
+// teal
+// violet
+// white
+// yellow
 // Conversion request endpoint
 conversionRouter.get('/latex', async (req, res) => {
   //取得網址列的參數
@@ -156,10 +175,11 @@ conversionRouter.get('/latex', async (req, res) => {
     const equation = '\\begin{align*}\n' +req.query.latexInput.trim()+ '\\end{align*}\n';
     const fileFormat = req.query.outputFormat.toLowerCase();
     const outputScale = scaleMap[req.query.outputScale];
+    const color = req.query.color;
     console.log(`equation: ${equation}`);
     // Generate and write the .tex file
     await fsPromises.mkdir(`${tempDir}/${id}`);
-    await fsPromises.writeFile(`${tempDir}/${id}/equation.tex`, getLatexTemplate(equation));
+    await fsPromises.writeFile(`${tempDir}/${id}/equation.tex`, getLatexTemplate(equation,color));
 
     // Run the LaTeX compiler and generate a .svg file
     await execAsync(getDockerCommand(id, outputScale));
@@ -210,7 +230,7 @@ app.listen(port, () => console.log(`Latex2Image listening at http://localhost:${
 //// Helper functions
 
 // Get the LaTeX document template for the requested equation
-function getLatexTemplate(equation) {
+function getLatexTemplate(equation,color='black') {
   return `
     \\documentclass[12pt]{article}
     \\usepackage{amsmath}
@@ -221,7 +241,9 @@ function getLatexTemplate(equation) {
     \\usepackage[utf8]{inputenc}
     \\thispagestyle{empty}
     \\begin{document}
+    {\\color{${color}}
     ${equation}
+    }
     \\end{document}`;
 }
 
