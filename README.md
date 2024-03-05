@@ -8,6 +8,36 @@ For each conversion, an isolated Docker container with a LaTeX installation is s
 
 Bootstrap and jQuery are used in the web interface, with AJAX calls made to the conversion API endpoint.
 
+
+## 其他使用方法
+   
+            example: /latex?latexInput=a_{n%2B1}%3Da_n%2Bk&outputFormat=PNG&outputScale=200%25&color=white
+            
+            let latex = "a_{n+1}=a_n+k"
+            `/latex?latexInput=${encodeURIComponent(latex)}&outputFormat=PNG&outputScale=200%25&color=white`
+
+            目前大小只能透過 outputScale 來調整 , color 因為latex的關係，只能支援16色
+            // black
+            // blue
+            // brown
+            // cyan
+            // darkgray
+            // gray
+            // green
+            // lightgray
+            // lime
+            // magenta
+            // olive
+            // orange
+            // pink
+            // purple
+            // red
+            // teal
+            // violet
+            // white
+            // yellow
+
+
 ## Live Demo
 
 The application is accessible at [https://latex2image.joeraut.com](https://latex2image.joeraut.com)
