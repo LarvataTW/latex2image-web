@@ -50,7 +50,7 @@ app.use(conversionRouter);
 
 // Queue requests to ensure that only one is processed at a time, preventing
 // multiple concurrent Docker containers from exhausting system resources
-conversionRouter.use(queue({ activeLimit: 1, queuedLimit: -1 }));
+conversionRouter.use(queue({ activeLimit: 50, queuedLimit: -1 }));
 
 
 
@@ -182,7 +182,7 @@ conversionRouter.get('/latex', async (req, res) => {
     const color = req.query.color.replace('#', '').toUpperCase();
     console.log(`equation: ${equation}`);
     //把req結合產出hash code 如果依樣就直接讀檔案
-    const idOriginString = equation + fileFormat + outputScale;
+    const idOriginString = equation + fileFormat + outputScale+color;
     id = crypto.createHash('md5').update(idOriginString).digest('hex');
     console.log("nid=" + id);
     if(fs.existsSync(`${outputDir}/img-${id}.${fileFormat}`)){
@@ -200,7 +200,7 @@ conversionRouter.get('/latex', async (req, res) => {
 
     const inputSvgFileName = `${tempDir}/${id}/equation.svg`;
     const outputFileName = `${outputDir}/img-${id}.${fileFormat}`;
-    console.log("outputFileName=", outputFileName);
+    // console.log("outputFileName=", outputFileName);
     // Return the SVG image, no further processing required
     if (fileFormat === 'svg') {
       await fsPromises.copyFile(inputSvgFileName, outputFileName);
