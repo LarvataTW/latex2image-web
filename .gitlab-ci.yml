@@ -31,10 +31,10 @@ build:
   rules:
     - when: never
   
-#production:
-#  stage: production
-#  rules:
-#    - when: never
+production:
+  stage: production
+  rules:
+    - when: never
 
 qat_remote_deploy:
   extends: .remote_deploy
@@ -42,7 +42,7 @@ qat_remote_deploy:
     WORK_DIR: "/home/ubuntu/mathgamewar/${CI_PROJECT_NAME}/"
   only:
     refs:
-      - develop
+      - master
   environment:
     name: qat_remote_deploy
     url: https://mathgame-latex.larvata.tw/
