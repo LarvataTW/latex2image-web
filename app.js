@@ -6,6 +6,7 @@ const promiseRouter = require('express-promise-router');
 const queue = require('express-queue');
 const sharp = require('sharp');
 const Promise = require('bluebird');
+const crypto = require('crypto');
 
 const port = 3001;
 
@@ -57,6 +58,7 @@ conversionRouter.use(queue({ activeLimit: 1, queuedLimit: -1 }));
 // Conversion request endpoint
 conversionRouter.post('/convert', async (req, res) => {
   const id = generateID(); // Generate a unique ID for this request
+
   // console.log(req.body.latexInput);
   try {
     if (!req.body.latexInput) {
@@ -85,6 +87,8 @@ conversionRouter.post('/convert', async (req, res) => {
     const fileFormat = req.body.outputFormat.toLowerCase();
     const outputScale = scaleMap[req.body.outputScale];
     console.log(`equation: ${equation}`);
+
+
     // Generate and write the .tex file
     await fsPromises.mkdir(`${tempDir}/${id}`);
     await fsPromises.writeFile(`${tempDir}/${id}/equation.tex`, getLatexTemplate(equation));
@@ -146,7 +150,7 @@ conversionRouter.post('/convert', async (req, res) => {
 // Conversion request endpoint
 conversionRouter.get('/latex', async (req, res) => {
   //取得網址列的參數
-  const id = generateID();
+   let id = generateID(); //先產生一個假id 用來當作檔案名稱 後續會被覆蓋掉。這樣清理的catch 區塊才能拿得到id
   // console.log(req.query.latexInput);
 
   try {
@@ -175,8 +179,18 @@ conversionRouter.get('/latex', async (req, res) => {
     const equation = '\\begin{align*}\n' + req.query.latexInput.trim() + '\\end{align*}\n';
     const fileFormat = req.query.outputFormat.toLowerCase();
     const outputScale = scaleMap[req.query.outputScale];
-    const color = req.query.color.replace('#','').toUpperCase();
+    const color = req.query.color.replace('#', '').toUpperCase();
     console.log(`equation: ${equation}`);
+    //把req結合產出hash code 如果依樣就直接讀檔案
+    const idOriginString = equation + fileFormat + outputScale;
+    id = crypto.createHash('md5').update(idOriginString).digest('hex');
+    console.log("nid=" + id);
+    if(fs.existsSync(`${outputDir}/img-${id}.${fileFormat}`)){
+      console.log("file exist");
+      res.set('Access-Control-Allow-Origin', '*');
+      res.sendFile(__dirname + `/${outputDir}/img-${id}.${fileFormat}`);
+      return;
+    }
     // Generate and write the .tex file
     await fsPromises.mkdir(`${tempDir}/${id}`);
     await fsPromises.writeFile(`${tempDir}/${id}/equation.tex`, getLatexTemplate(equation, color));
@@ -232,7 +246,7 @@ app.listen(port, () => console.log(`Latex2Image listening at http://localhost:${
 
 // Get the LaTeX document template for the requested equation
 function getLatexTemplate(equation, color = '000000') {
-  color=color.replace('#','');
+  color = color.replace('#', '');
   return `
     \\documentclass[12pt]{article}
     \\usepackage{amsmath}
