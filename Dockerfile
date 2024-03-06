@@ -24,4 +24,5 @@ RUN  npm install
 COPY . /src
 # RUN cd /src; npm install
 EXPOSE 3001 
+ENV NODE_ENV production
 CMD ["node", "/src/app.js"]
