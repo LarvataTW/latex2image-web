@@ -175,7 +175,7 @@ conversionRouter.get('/latex', async (req, res) => {
     const equation = '\\begin{align*}\n' + req.query.latexInput.trim() + '\\end{align*}\n';
     const fileFormat = req.query.outputFormat.toLowerCase();
     const outputScale = scaleMap[req.query.outputScale];
-    const color = req.query.color;
+    const color = req.query.color.replace('#','').toUpperCase();
     console.log(`equation: ${equation}`);
     // Generate and write the .tex file
     await fsPromises.mkdir(`${tempDir}/${id}`);
@@ -231,7 +231,8 @@ app.listen(port, () => console.log(`Latex2Image listening at http://localhost:${
 //// Helper functions
 
 // Get the LaTeX document template for the requested equation
-function getLatexTemplate(equation, color = 'black') {
+function getLatexTemplate(equation, color = '000000') {
+  color=color.replace('#','');
   return `
     \\documentclass[12pt]{article}
     \\usepackage{amsmath}
@@ -241,10 +242,9 @@ function getLatexTemplate(equation, color = 'black') {
     \\usepackage{siunitx}
     \\usepackage[utf8]{inputenc}
     \\thispagestyle{empty}
+    \\definecolor{foo}{HTML}{${color}}
     \\begin{document}
-    {\\color{${color}}
-    ${equation}
-    }
+    \\textcolor{foo}{${equation}}
     \\end{document}`;
 }
 
