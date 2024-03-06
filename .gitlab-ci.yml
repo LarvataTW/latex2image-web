@@ -1,0 +1,74 @@
+include:
+  - project: 'larvata/devops/gitlab-ci-templates'
+    ref: master
+    file: 'Auto-DevOps.gitlab-ci.yml'
+
+.remote_deploy:
+  stage: production
+  image: kroniak/ssh-client
+  script:
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
+    - echo "$DEPLOY_SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+    - chmod 600 ~/.ssh/id_rsa
+  
+    - |
+      ssh -l $DEPLOY_USER $DEPLOY_SSH_HOST " 
+      cd ${WORK_DIR}
+      git checkout ${CI_COMMIT_BRANCH}
+      git pull
+      docker-compose down && docker-compose up -d
+      "
+
+staging:
+  stage: staging
+  rules:
+    - when: never
+  
+build:
+  stage: build
+  rules:
+    - when: never
+  
+production:
+  stage: production
+  rules:
+    - when: never
+
+qat_remote_deploy:
+  extends: .remote_deploy
+  variables:
+    WORK_DIR: "/home/ubuntu/mathgamewar/${CI_PROJECT_NAME}/"
+  only:
+    refs:
+      - develop
+  environment:
+    name: qat_remote_deploy
+    url: https://mathgame-latex.larvata.tw/
+  allow_failure: false
+# when: manual
+
+prod_remote_deploy:
+  stage: production
+  variables:
+    WORK_DIR: "/home/sysadmin/mathgamewar/${CI_PROJECT_NAME}/"
+  script:
+    - |
+      ssh assets " 
+      cd ${WORK_DIR}
+      git checkout ${CI_COMMIT_BRANCH}
+      git reset --hard
+      git pull
+      docker-compose down && docker-compose up -d
+      "
+  only:
+    refs:
+      - main
+  environment:
+    name: prod_remote_deploy
+    #url: https://prod-mathgame-assets.larvata.tw/
+  allow_failure: false
+  when: manual
+  tags:
+    - up-group
