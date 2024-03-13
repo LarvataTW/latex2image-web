@@ -159,10 +159,10 @@ conversionRouter.get('/latex', async (req, res) => {
       return;
     }
 
-    if (!scaleMap[req.query.outputScale]) {
-      res.end(JSON.stringify({ error: 'Invalid scale.' }));
-      return;
-    }
+    // if (!scaleMap[req.query.outputScale]) {
+    //   res.end(JSON.stringify({ error: 'Invalid scale.' }));
+    //   return;
+    // }
 
     if (!validFormats.includes(req.query.outputFormat)) {
       res.end(JSON.stringify({ error: 'Invalid image format.' }));
@@ -178,7 +178,12 @@ conversionRouter.get('/latex', async (req, res) => {
 
     const equation = '\\begin{align*}\n' + req.query.latexInput.trim() + '\\end{align*}\n';
     const fileFormat = req.query.outputFormat.toLowerCase();
-    const outputScale = scaleMap[req.query.outputScale];
+
+    var outputScaleNum = parseFloat(req.query.outputScale) / 100; 
+    const outputScale = outputScaleNum.toFixed(2).toString();
+    // const outputScale = scaleMap[req.query.outputScale];
+    console.log("outputScale",outputScale);
+    
     const color = req.query.color.replace('#', '').toUpperCase();
     console.log(`equation: ${equation}`);
     //把req結合產出hash code 如果依樣就直接讀檔案
